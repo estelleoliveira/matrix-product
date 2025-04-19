@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstdlib>
+#include <chrono>
 
 #include <Kokkos_Core.hpp>
 #include <fmt/core.h>
@@ -59,6 +60,8 @@ auto main(int argc, char* argv[]) -> int {
 
   Kokkos::initialize(argc, argv);
   {
+    fmt::print("Threads disponibles : {}\n", Kokkos::DefaultExecutionSpace().concurrency());
+
     auto A = Matrix("A", m, k);
     auto B = Matrix("B", k, n);
     auto C = Matrix("C", m, n);
@@ -70,8 +73,16 @@ auto main(int argc, char* argv[]) -> int {
     matrix_init(C);
 
     Kokkos::fence();
+    auto start_time = std::chrono::high_resolution_clock::now();
     matrix_product(alpha, A, B, beta, C);
+    auto end_time = std::chrono::high_resolution_clock::now();
     Kokkos::fence();
+
+    double elapsed = std::chrono::duration<double>(end_time - start_time).count();
+    double gflops = (2.0 * m * n * k) / (elapsed * 1e9);
+
+    printf("Elapsed time in matrix product : %.6f s\n", elapsed);
+    printf("Performance: %.6f GFLOP/s\n", gflops);
   }
   Kokkos::finalize();
   return 0;
