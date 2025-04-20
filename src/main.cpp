@@ -60,34 +60,30 @@ auto main(int argc, char* argv[]) -> int {
 
   Kokkos::initialize(argc, argv);
   {
-    int nb_threads = Kokkos::DefaultExecutionSpace().concurrency();
+  int nb_threads = Kokkos::DefaultExecutionSpace().concurrency();
+  fmt::print("Nombre de threads disponibles : {}\n", nb_threads);
+  auto A = Matrix("A", m, k);
+  auto B = Matrix("B", k, n);
+  auto C = Matrix("C", m, n);
 
-    for (int i = 2; i <= nb_threads; i++) {
-    fmt::print("------ Nombre de threads utilisés : {}/{} ------\n", i, nb_threads);
+  double alpha = drand48();
+  matrix_init(A);
+  matrix_init(B);
+  double beta = drand48();
+  matrix_init(C);
 
-    auto A = Matrix("A", m, k);
-    auto B = Matrix("B", k, n);
-    auto C = Matrix("C", m, n);
+  Kokkos::fence();
+  auto start_time = std::chrono::high_resolution_clock::now();
+  matrix_product(alpha, A, B, beta, C);
+  auto end_time = std::chrono::high_resolution_clock::now();
+  Kokkos::fence();
 
-    double alpha = drand48();
-    matrix_init(A);
-    matrix_init(B);
-    double beta = drand48();
-    matrix_init(C);
+  double elapsed = std::chrono::duration<double>(end_time - start_time).count();
+  double gflops = (2.0 * m * n * k) / (elapsed * 1e9);
 
-    Kokkos::fence();
-    auto start_time = std::chrono::high_resolution_clock::now();
-    matrix_product(alpha, A, B, beta, C);
-    auto end_time = std::chrono::high_resolution_clock::now();
-    Kokkos::fence();
-
-    double elapsed = std::chrono::duration<double>(end_time - start_time).count();
-    double gflops = (2.0 * m * n * k) / (elapsed * 1e9);
-
-    printf("Elapsed time in matrix product : %.6f s - Performance: %.6f GFLOP/s\n - Speedup : %.6f", elapsed, gflops);
+  printf("Elapsed time in matrix product : %.6f s - Performance: %.6f GFLOP/s", elapsed, gflops);
   }
   Kokkos::finalize();
-  }
 
   return 0;
 }
