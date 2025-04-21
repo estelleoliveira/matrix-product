@@ -14,7 +14,7 @@ with open('../results/threads_var.txt', 'r') as f:
 
 #figure pour le temps 
 plt.figure(figsize=(10, 6))
-plt.plot(matrix_sizes, times, label='Time (s)', color='blue', marker='o')
+plt.plot(nb_threads, times, label='Time (s)', color='blue', marker='o')
 
 plt.xlabel('Number of threads')
 plt.ylabel('Value')
@@ -26,7 +26,7 @@ plt.show()
 
 #figure pour le speedup
 plt.figure(figsize=(10, 6))
-plt.plot(matrix_sizes, speedups, label='Speedup', color='red', marker='x')
+plt.plot(nb_threads, speedups, label='Speedup', color='red', marker='x')
 
 plt.xlabel('Number of threads')
 plt.ylabel('Value')

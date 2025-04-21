@@ -15,7 +15,7 @@ REF_TIME=0
 
 #plage de taille de matrices à tester
 START_SIZE=100
-END_SIZE=1000
+END_SIZE=4000
 STEP=100
 
 > ../results/size_var.txt

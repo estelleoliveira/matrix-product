@@ -22,6 +22,8 @@ auto matrix_init(MatrixType& M) -> void {
   );
 }
 
+constexpr int BLOCK_SIZE_i = 16;
+constexpr int BLOCK_SIZE_j = 32;
 template <class AMatrixType, class BMatrixType, class CMatrixType>
 auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, double beta, CMatrixType& C) -> void {
   static_assert(
@@ -31,16 +33,28 @@ auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, do
   assert(B.extent(1) == C.extent(1));
   assert(A.extent(1) == B.extent(0));
 
+/*Block extend on BLOCK_SIZE_i BLOCK_SIZE_j*/
   Kokkos::parallel_for(
-    "dgemm_kernel",
+    "dgemm_kernel_blocked",
     A.extent(0),
     KOKKOS_LAMBDA(int i) {
-      for (int j = 0; j < int(B.extent(1)); ++j) {
+      for (int j_block = 0; j_block < int((B.extent(1)+BLOCK_SIZE_j-1)/BLOCK_SIZE_j); j_block++){
+      for (int j = 0; j < BLOCK_SIZE_j; ++j) {
+        int col = j_block * BLOCK_SIZE_j + j;
         double acc = 0.0;
-        for (int k = 0; k < int(A.extent(1)); ++k) {
-          acc += alpha * A(i, k) * B(k, j);
+        if (col >= int(B.extent(1))) continue;
+
+
+        for (int k_block = 0; k_block < int((A.extent(0)+BLOCK_SIZE_i-1)/BLOCK_SIZE_i); k_block++){
+        for (int k = 0; k < BLOCK_SIZE_i; ++k) {
+          int kk = k_block * BLOCK_SIZE_i + k;
+          if (kk >= int(A.extent(1))) continue;
+
+          acc += alpha * A(i, kk) * B(kk, col);
         }
-        C(i, j) *= beta + acc;
+        }
+        C(i, col) *= beta + acc;
+      }
       }
     }
   );
