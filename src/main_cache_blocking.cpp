@@ -1,11 +1,13 @@
 #include <cassert>
 #include <cstdlib>
 #include <chrono>
+#include <iostream> //stdcout debug
 
 #include <Kokkos_Core.hpp>
 #include <fmt/core.h>
 
-using Matrix = Kokkos::View<double**, Kokkos::LayoutRight>;
+using MatrixR = Kokkos::View<double**, Kokkos::LayoutRight>;
+using MatrixL = Kokkos::View<double**, Kokkos::LayoutLeft>;
 
 template <class MatrixType>
 auto matrix_init(MatrixType& M) -> void {
@@ -22,8 +24,8 @@ auto matrix_init(MatrixType& M) -> void {
   );
 }
 
-constexpr int BLOCK_SIZE_i = 16;
-constexpr int BLOCK_SIZE_j = 32;
+constexpr int BLOCK_SIZE_i = 64;
+constexpr int BLOCK_SIZE_j = 64;
 template <class AMatrixType, class BMatrixType, class CMatrixType>
 auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, double beta, CMatrixType& C) -> void {
   static_assert(
@@ -36,28 +38,43 @@ auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, do
 /*Block extend on BLOCK_SIZE_i BLOCK_SIZE_j*/
   Kokkos::parallel_for(
     "dgemm_kernel_blocked",
-    A.extent(0),
-    KOKKOS_LAMBDA(int i) {
-      for (int j_block = 0; j_block < int((B.extent(1)+BLOCK_SIZE_j-1)/BLOCK_SIZE_j); j_block++){
+    Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {A.extent(0) / BLOCK_SIZE_i, B.extent(1) / BLOCK_SIZE_j}, {1, 1}),
+    KOKKOS_LAMBDA(int i_block, int j_block) {
+      /*Se déplacer sur les blocs j --> blocs colonnes de B*/
+      //for (int j_block = 0; j_block < int((B.extent(1)+BLOCK_SIZE_j-1)/BLOCK_SIZE_j); j_block++){
       for (int j = 0; j < BLOCK_SIZE_j; ++j) {
         int col = j_block * BLOCK_SIZE_j + j;
         double acc = 0.0;
         if (col >= int(B.extent(1))) continue;
 
-
+        /*Se déplacer sur les blocs k --> blocs lignes de A*/
         for (int k_block = 0; k_block < int((A.extent(0)+BLOCK_SIZE_i-1)/BLOCK_SIZE_i); k_block++){
         for (int k = 0; k < BLOCK_SIZE_i; ++k) {
           int kk = k_block * BLOCK_SIZE_i + k;
           if (kk >= int(A.extent(1))) continue;
 
-          acc += alpha * A(i, kk) * B(kk, col);
+          acc += alpha * A(i_block*BLOCK_SIZE_i+k, kk) * B(kk, col);
         }
         }
-        C(i, col) *= beta + acc;
+
+        //Miseà jour de C
+        int i = i_block * BLOCK_SIZE_i + j;
+        if (i < int(C.extent(0)) && col < int(C.extent(1))) {
+          C(i, col) *= beta + acc;
+        }
       }
-      }
+      //}
     }
   );
+    //Affichage de C pour comparer avec main //débug
+  /*if (int(C.extent(0)) < 5 && int(C.extent(1)) < 5){
+  for (int i = 0; i < int(C.extent(0)); ++i) {
+    for (int j = 0; j < int(C.extent(1)); ++j) {
+        std::cout << C(i, j) << " ";
+    }
+    std::cout << std::endl;
+  }
+  }*/
 }
 
 auto main(int argc, char* argv[]) -> int {
@@ -76,9 +93,9 @@ auto main(int argc, char* argv[]) -> int {
   {
   int nb_threads = Kokkos::DefaultExecutionSpace().concurrency();
   fmt::print("Nombre de threads disponibles : {}\n", nb_threads);
-  auto A = Matrix("A", m, k);
-  auto B = Matrix("B", k, n);
-  auto C = Matrix("C", m, n);
+  auto A = MatrixR("A", m, k);
+  auto B = MatrixL("B", k, n);
+  auto C = MatrixR("C", m, n);
 
   double alpha = drand48();
   matrix_init(A);

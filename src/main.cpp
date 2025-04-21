@@ -1,11 +1,13 @@
 #include <cassert>
 #include <cstdlib>
 #include <chrono>
+#include <iostream> //stdcout debug
 
 #include <Kokkos_Core.hpp>
 #include <fmt/core.h>
 
-using Matrix = Kokkos::View<double**, Kokkos::LayoutRight>;
+using MatrixR = Kokkos::View<double**, Kokkos::LayoutRight>;
+using MatrixL = Kokkos::View<double**, Kokkos::LayoutLeft>;
 
 template <class MatrixType>
 auto matrix_init(MatrixType& M) -> void {
@@ -44,6 +46,15 @@ auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, do
       }
     }
   );
+  //Affichage de C pour debug
+  /*if (int(C.extent(0)) < 5 && int(C.extent(1)) < 5){
+  for (int i = 0; i < int(C.extent(0)); ++i) {
+    for (int j = 0; j < int(C.extent(1)); ++j) {
+      std::cout << C(i, j) << " ";
+    }
+      std::cout << std::endl;
+  }
+  }*/
 }
 
 auto main(int argc, char* argv[]) -> int {
@@ -62,9 +73,9 @@ auto main(int argc, char* argv[]) -> int {
   {
   int nb_threads = Kokkos::DefaultExecutionSpace().concurrency();
   fmt::print("Nombre de threads disponibles : {}\n", nb_threads);
-  auto A = Matrix("A", m, k);
-  auto B = Matrix("B", k, n);
-  auto C = Matrix("C", m, n);
+  auto A = MatrixR("A", m, k);
+  auto B = MatrixL("B", k, n);
+  auto C = MatrixR("C", m, n);
 
   double alpha = drand48();
   matrix_init(A);
