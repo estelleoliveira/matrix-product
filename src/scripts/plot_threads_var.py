@@ -33,4 +33,5 @@ plt.ylabel('Value')
 plt.title('Matrix Product Performance: Speedup')
 plt.legend()
 
+plt.savefig("../figures/threads_var.png")
 plt.show()

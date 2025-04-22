@@ -32,4 +32,5 @@ plt.ylabel('Value')
 plt.title('Matrix Product Performance: Speedup')
 plt.legend()
 
+plt.savefig("../figures/matrix_var.png")
 plt.show()

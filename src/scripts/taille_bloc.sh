@@ -21,36 +21,36 @@ BLOCK_SIZES=(16 32 64 128)
 
 for BLOCK_I in "${BLOCK_SIZES[@]}"; do
   for BLOCK_J in "${BLOCK_SIZES[@]}"; do
+    for BLOCK_K in "${BLOCK_SIZES[@]}"; do
+      echo "Test BLOCK_SIZE_i = $BLOCK_I, BLOCK_SIZE_j = $BLOCK_J, BLOCK_SIZE_k = $BLOCK_K"
 
-    echo "Test BLOCK_SIZE_i = $BLOCK_I, BLOCK_SIZE_j = $BLOCK_J"
+      # remplacement dans le code source
+      sed -i "s/^constexpr int BLOCK_SIZE_i = .*/constexpr int BLOCK_SIZE_i = $BLOCK_I;/" ../main_cache_blocking.cpp
+      sed -i "s/^constexpr int BLOCK_SIZE_j = .*/constexpr int BLOCK_SIZE_j = $BLOCK_J;/" ../main_cache_blocking.cpp
+      sed -i "s/^constexpr int BLOCK_SIZE_j = .*/constexpr int BLOCK_SIZE_j = $BLOCK_K;/" ../main_cache_blocking.cpp
 
-    # remplacement dans le code source
-    sed -i "s/^constexpr int BLOCK_SIZE_i = .*/constexpr int BLOCK_SIZE_i = $BLOCK_I;/" ../main_cache_blocking.cpp
-    sed -i "s/^constexpr int BLOCK_SIZE_j = .*/constexpr int BLOCK_SIZE_j = $BLOCK_J;/" ../main_cache_blocking.cpp
+      # Compilation
+      cmake --build ../../build
 
-    # Compilation
-    make clean > /dev/null 2>&1
-    make > /dev/null 2>&1
+      # Execution
+      OUTPUT=$(OMP_NUM_THREADS=$THREADS OMP_PROC_BIND=true OMP_PLACES=cores $EXE $MATRIX_SIZE $MATRIX_SIZE $MATRIX_SIZE)
+      echo "$OUTPUT"
 
-    # Execution
-    OUTPUT=$(OMP_NUM_THREADS=$THREADS OMP_PROC_BIND=true OMP_PLACES=cores $EXE $MATRIX_SIZE $MATRIX_SIZE $MATRIX_SIZE)
-    echo "$OUTPUT"
-
-    TIME=$(echo "$OUTPUT" | grep -oP 'Elapsed time in matrix product : \K[0-9]+\.[0-9]{6}')
-    echo "Extracted time : $TIME"
+      TIME=$(echo "$OUTPUT" | grep -oP 'Elapsed time in matrix product : \K[0-9]+\.[0-9]{6}')
+      echo "Extracted time : $TIME"
 
 
-    if [[ $BLOCK_I -eq 16 && $BLOCK_J -eq 16 ]]; then
-      REF_TIME=$TIME
-      SPEEDUP=1.0
-      echo "Bloc 16x16 utilisé comme référence ($TIME s)"
-    else
-      SPEEDUP=$(echo "$REF_TIME / $TIME" | bc -l)
-    fi
+      if [[ $BLOCK_I -eq 16 && $BLOCK_J -eq 16 ]]; then
+        REF_TIME=$TIME
+        SPEEDUP=1.0
+        echo "Bloc 16x16x16 utilisé comme référence ($TIME s)"
+      else
+        SPEEDUP=$(echo "$REF_TIME / $TIME" | bc -l)
+      fi
 
-    printf "Speedup : %.2fx\n" "$SPEEDUP"
-    echo "$BLOCK_I$BLOCK_J $TIME $SPEEDUP" >> "../results/blocs_var.txt"
-
+      printf "Speedup : %.2fx\n" "$SPEEDUP"
+      echo "$BLOCK_I $BLOCK_J $BLOCK_K $TIME $SPEEDUP" >> "../results/blocs_var.txt"
+    done
   done
 done
 

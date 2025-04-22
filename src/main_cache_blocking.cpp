@@ -24,46 +24,39 @@ auto matrix_init(MatrixType& M) -> void {
   );
 }
 
-constexpr int BLOCK_SIZE_i = 128;
-constexpr int BLOCK_SIZE_j = 128;
+constexpr int BLOCK_SIZE_i = 32;
+constexpr int BLOCK_SIZE_j = 32;
+constexpr int BLOCK_SIZE_k = 128;
 template <class AMatrixType, class BMatrixType, class CMatrixType>
 auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, double beta, CMatrixType& C) -> void {
   static_assert(
     AMatrixType::rank() == 2 && BMatrixType::rank() == 2 && CMatrixType::rank() == 2, "Views must be of rank 2"
   );
-  assert(A.extent(0) == C.extent(0));
-  assert(B.extent(1) == C.extent(1));
-  assert(A.extent(1) == B.extent(0));
+  assert(A.extent(0) == C.extent(0)); //i Aik Cij
+  assert(B.extent(1) == C.extent(1)); //j Bkj Cij
+  assert(A.extent(1) == B.extent(0)); //k Aik Bkj
 
 /*Block extend on BLOCK_SIZE_i BLOCK_SIZE_j*/
   Kokkos::parallel_for(
     "dgemm_kernel_blocked",
-    Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {A.extent(0) / BLOCK_SIZE_i, B.extent(1) / BLOCK_SIZE_j}, {1, 1}),
+    Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {(A.extent(0) + BLOCK_SIZE_i - 1)/ BLOCK_SIZE_i, (B.extent(1) + BLOCK_SIZE_j - 1) / BLOCK_SIZE_j}),
     KOKKOS_LAMBDA(int i_block, int j_block) {
-      /*Se déplacer sur les blocs j --> blocs colonnes de B*/
-      //for (int j_block = 0; j_block < int((B.extent(1)+BLOCK_SIZE_j-1)/BLOCK_SIZE_j); j_block++){
-      for (int j = 0; j < BLOCK_SIZE_j; ++j) {
-        int col = j_block * BLOCK_SIZE_j + j;
-        double acc = 0.0;
-        if (col >= int(B.extent(1))) continue;
+      int i_start = i_block * BLOCK_SIZE_i; //indice coin supérieur gauche du bloc i
+      int j_start = j_block * BLOCK_SIZE_j; //indice coin supérieur gauche du bloc j
 
-        /*Se déplacer sur les blocs k --> blocs lignes de A*/
-        for (int k_block = 0; k_block < int((A.extent(0)+BLOCK_SIZE_i-1)/BLOCK_SIZE_i); k_block++){
-        for (int k = 0; k < BLOCK_SIZE_i; ++k) {
-          int kk = k_block * BLOCK_SIZE_i + k;
-          if (kk >= int(A.extent(1))) continue;
-
-          acc += alpha * A(i_block*BLOCK_SIZE_i+k, kk) * B(kk, col);
-        }
-        }
-
-        //Miseà jour de C
-        int i = i_block * BLOCK_SIZE_i + j;
-        if (i < int(C.extent(0)) && col < int(C.extent(1))) {
-          C(i, col) *= beta + acc;
+      /*On crée ici un cache blocking de manière à se déplacer sur des blocs, le long des lignes de A et des colonnes de B, 
+      on block aussi au niveau de k --> composante colonne de A et ligne de B, ainsi on fait des multiplication de petites matrices*/
+      for (int i = i_start; i < std::min(i_start + BLOCK_SIZE_i, int(A.extent(0))); ++i) {
+        for (int j = j_start; j < std::min(j_start + BLOCK_SIZE_j, int(B.extent(1))); ++j) {
+          double acc = 0.0;
+          for (int k_block = 0; k_block < int(A.extent(1)); k_block += BLOCK_SIZE_k) {
+          for (int k = 0; k < std::min(k_block + BLOCK_SIZE_k, int(A.extent(1))); ++k) {
+            acc += alpha * A(i, k) * B(k, j);
+          }
+          }
+          C(i,j) *= beta + acc;
         }
       }
-      //}
     }
   );
     //Affichage de C pour comparer avec main //débug
