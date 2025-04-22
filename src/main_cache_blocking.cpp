@@ -24,8 +24,8 @@ auto matrix_init(MatrixType& M) -> void {
   );
 }
 
-constexpr int BLOCK_SIZE_i = 64;
-constexpr int BLOCK_SIZE_j = 64;
+constexpr int BLOCK_SIZE_i = 128;
+constexpr int BLOCK_SIZE_j = 128;
 template <class AMatrixType, class BMatrixType, class CMatrixType>
 auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, double beta, CMatrixType& C) -> void {
   static_assert(
