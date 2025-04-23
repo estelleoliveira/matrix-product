@@ -20,7 +20,9 @@ plt.xlabel('Matrix size')
 plt.ylabel('Value')
 plt.title('Matrix Product Performance: Time')
 plt.legend()
+plt.yscale("log")
 
+plt.savefig("../figures/time_matrix_var.png")
 plt.show()
 
 #figure pour le speedup
@@ -31,6 +33,7 @@ plt.xlabel('Matrix size')
 plt.ylabel('Value')
 plt.title('Matrix Product Performance: Speedup')
 plt.legend()
+plt.yscale("log")
 
-plt.savefig("../figures/matrix_var.png")
+plt.savefig("../figures/speedup_matrix_var.png")
 plt.show()
