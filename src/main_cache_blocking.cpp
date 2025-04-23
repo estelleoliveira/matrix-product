@@ -24,9 +24,9 @@ auto matrix_init(MatrixType& M) -> void {
   );
 }
 
-constexpr int BLOCK_SIZE_i = 32;
-constexpr int BLOCK_SIZE_j = 32;
-constexpr int BLOCK_SIZE_k = 128;
+constexpr int BLOCK_SIZE_i = 64;
+constexpr int BLOCK_SIZE_j = 16;
+constexpr int BLOCK_SIZE_k = 32;
 template <class AMatrixType, class BMatrixType, class CMatrixType>
 auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, double beta, CMatrixType& C) -> void {
   static_assert(
@@ -50,7 +50,7 @@ auto matrix_product(double alpha, AMatrixType const& A, BMatrixType const& B, do
         for (int j = j_start; j < std::min(j_start + BLOCK_SIZE_j, int(B.extent(1))); ++j) {
           double acc = 0.0;
           for (int k_block = 0; k_block < int(A.extent(1)); k_block += BLOCK_SIZE_k) {
-          for (int k = 0; k < std::min(k_block + BLOCK_SIZE_k, int(A.extent(1))); ++k) {
+          for (int k = k_block; k < std::min(k_block + BLOCK_SIZE_k, int(A.extent(1))); ++k) {
             acc += alpha * A(i, k) * B(k, j);
           }
           }
@@ -88,7 +88,7 @@ auto main(int argc, char* argv[]) -> int {
   fmt::print("Nombre de threads disponibles : {}\n", nb_threads);
   auto A = MatrixR("A", m, k);
   auto B = MatrixL("B", k, n);
-  auto C = MatrixR("C", m, n);
+  auto C = MatrixL("C", m, n);
 
   double alpha = drand48();
   matrix_init(A);
